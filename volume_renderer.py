@@ -90,11 +90,9 @@ class VolumeRenderer:
         self.scans = scipy.ndimage.interpolation.zoom(self.scans, real_resize_factor)
         print(new_spacing) #
 
-    def make_mesh(self, threshold=-300, step_size=1):
+    def make_mesh(self, threshold=600, step_size=1):
         print("Transposing surface")
         p = self.scans.transpose(2, 1, 0)
-        p[p <= threshold] = 0
-        p[p >= threshold + 50] = 0
         print("Calculating surface")
         self.verts, self.faces, self.norm, self.val = measure.marching_cubes_lewiner(p, threshold, step_size=step_size,
                                                                  allow_degenerate=True)
@@ -124,8 +122,8 @@ print(scale)
 
 # vr.resample()
 # vr.sample_view()
-
-vr.make_mesh(threshold=0)
+# vr.scans = blockwise_average_3D(vr.scans, (2,2,2))
+vr.make_mesh(threshold=-300)
 vr.scale(scale)
 vr.save('models/fullbody1')
 print('done')

@@ -44,3 +44,8 @@ def transform(verts, matrix):
         nv = matrix.dot(np.array(v).T)[:-1].tolist()
         new_verts.append(nv)
     return np.array(new_verts)
+
+
+def blockwise_average_3D(A, S):
+    m, n, r = np.array(A.shape) // S
+    return A.reshape(m, S[0], n, S[1], r, S[2]).mean((1, 3, 5))

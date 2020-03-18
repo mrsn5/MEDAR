@@ -36,7 +36,7 @@ class VolumeRenderer:
 
         for s in slices:
             s.SliceThickness = slice_thickness
-        return slices
+        return slices[::-1]
 
     def get_pixels_hu(self, scans):
         image = np.stack([s.pixel_array for s in scans])
@@ -96,6 +96,9 @@ class VolumeRenderer:
         print("Calculating surface")
         self.verts, self.faces, self.norm, self.val = measure.marching_cubes_lewiner(p, threshold, step_size=step_size,
                                                                  allow_degenerate=True)
+        print('verts: ', len(self.verts))
+        print('faces: ', len(self.faces))
+
 
     def scale(self, size):
         if self.verts is None:
@@ -111,8 +114,7 @@ class VolumeRenderer:
         model.save('data/' + filename + '.stl')
 
 
-
-vr = VolumeRenderer('data/fullbody1')
+vr = VolumeRenderer('data/lung2')
 # vr.sample_view()
 # vr.histogram()
 print("Slice Thickness: %f" % vr.raw_scans[0].SliceThickness)
@@ -122,10 +124,11 @@ print(scale)
 
 # vr.resample()
 # vr.sample_view()
-# vr.scans = blockwise_average_3D(vr.scans, (2,2,2))
+print(vr.scans.shape)
+# vr.scans = blockwise_average_3D(vr.scans[0:148], (4,4,4))
 vr.make_mesh(threshold=-300)
 vr.scale(scale)
-vr.save('models/fullbody1')
+vr.save('models/model')
 print('done')
 
 #

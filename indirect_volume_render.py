@@ -2,8 +2,9 @@ import sys
 import vtk
 from PyQt5 import QtCore, QtGui
 from PyQt5 import Qt
-
+from vtk.util import numpy_support
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
+import numpy as np
 
 class MainWindow(Qt.QMainWindow):
 
@@ -19,9 +20,30 @@ class MainWindow(Qt.QMainWindow):
         self.vtkWidget.GetRenderWindow().AddRenderer(self.ren)
         self.iren = self.vtkWidget.GetRenderWindow().GetInteractor()
 
-        reader = vtk.vtkDICOMImageReader()
-        reader.SetDirectoryName('data/fullbody1')
-        reader.Update()
+        # reader = vtk.vtkDICOMImageReader()
+        # reader.SetDirectoryName('data/fullbody1')
+        # reader.Update()
+
+        array = np.load('data/inside.npy')
+        array = np.array(array, dtype=np.uint8)
+
+        array = np.load('data/inside.npy')
+        # array = np.array(array, dtype=float)
+
+        [h, w, z] = array.shape
+        print(array.shape)
+        print(np.min(array), np.max(array))
+
+        dataImporter = vtk.vtkImageImport()
+        data_string = array.tostring()
+        dataImporter.CopyImportVoidPointer(data_string, len(data_string))
+        dataImporter.SetDataScalarTypeToDouble()
+        dataImporter.SetNumberOfScalarComponents(1)
+        dataImporter.SetDataExtent(0, z - 1, 0, w - 1, 0, h - 1)
+        dataImporter.SetWholeExtent(0, z - 1, 0, w - 1, 0, h - 1)
+        dataImporter.SetDataSpacing(0.87890625, 0.87890625, 5.0)
+        # dataImporter.SetDataSpacing()
+        reader = dataImporter
 
         # The volume will be displayed by ray-cast alpha compositing.
         # A ray-cast mapper is needed to do the ray-casting, and a
@@ -83,6 +105,7 @@ class MainWindow(Qt.QMainWindow):
         volumeProperty.SetAmbient(0.9)
         volumeProperty.SetDiffuse(0.6)
         volumeProperty.SetSpecular(0.2)
+
 
         # The vtkVolume is a vtkProp3D (like a vtkActor) and controls the position
         # and orientation of the volume in world coordinates.

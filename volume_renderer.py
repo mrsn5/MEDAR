@@ -1,28 +1,21 @@
-import numpy as np
-import cv2
 import pydicom as dicom
 import os
+
 import matplotlib.pyplot as plt
-from glob import glob
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+import pydicom as dicom
 import scipy.ndimage
-from skimage import morphology
-from skimage import measure
-from skimage.transform import resize
-from sklearn.cluster import KMeans
-from plotly import __version__
-from plotly.offline import download_plotlyjs, init_notebook_mode, plot, iplot
-from plotly.tools import FigureFactory as FF
-from plotly.graph_objs import *
-from stl import mesh as M
-from transform3d import *
-from vtk.util import numpy_support
 import vtk
+from skimage import measure
+from stl import mesh as M
+from vtk.util import numpy_support
+
+from transform3d import *
+
 
 class VolumeRenderer:
     def __init__(self, scans_dir):
         self.scans_dir = scans_dir
-        self.raw_scans = self.load_scans(scans_dir)
+        self.raw_scans = self.load_scans(scans_dir)[::-1]
         self.scans = self.get_pixels_hu(self.raw_scans)
         self.vtk_data = numpy_support.numpy_to_vtk(self.scans.ravel(), deep=True, array_type=vtk.VTK_FLOAT)
 
@@ -44,10 +37,10 @@ class VolumeRenderer:
 
         # Set outside-of-scan pixels to 1
         # The intercept is usually -1024, so air is approximately 0
-        image[image == -2000] = 0
+        # image[image == -2000] = 0
 
         # Convert to Hounsfield units (HU)
-        intercept = -1024  # scans[0].RescaleIntercept
+        intercept = -1000  # scans[0].RescaleIntercept
         slope = 1  # scans[0].RescaleSlope
         print(intercept, slope)
         if slope != 1:
@@ -56,6 +49,14 @@ class VolumeRenderer:
 
         image += np.int16(intercept)
         return np.array(image, dtype=np.int16)
+
+    def mask_scans(self, mask):
+        mask = np.array(mask, dtype=bool)
+        self.scans[~mask] = -1000
+
+    def extract(self, alpha, beta):
+        self.scans[alpha > self.scans] = -1000
+        self.scans[beta < self.scans] = -1000
 
     def sample_view(self, rows=3, cols=3, start_with=0):
         fig, ax = plt.subplots(rows, cols, figsize=[12, 12])
@@ -111,22 +112,34 @@ class VolumeRenderer:
         model.save('data/' + filename + '.stl')
 
 
+if __name__ == "__main__":
 
-vr = VolumeRenderer('data/fullbody1')
-# vr.sample_view()
-# vr.histogram()
-print("Slice Thickness: %f" % vr.raw_scans[0].SliceThickness)
-print("Pixel Spacing (row, col): (%f, %f) " % (vr.raw_scans[0].PixelSpacing[0], vr.raw_scans[0].PixelSpacing[1]))
-scale = list(vr.raw_scans[0].PixelSpacing) + [vr.raw_scans[0].SliceThickness]
-print(scale)
+    vr = VolumeRenderer('data/fullbody1')
+    # vr.sample_view()
+    # vr.histogram()
+    print("Slice Thickness: %f" % vr.raw_scans[0].SliceThickness)
+    print("Pixel Spacing (row, col): (%f, %f) " % (vr.raw_scans[0].PixelSpacing[0], vr.raw_scans[0].PixelSpacing[1]))
+    scale = list(vr.raw_scans[0].PixelSpacing) + [vr.raw_scans[0].SliceThickness]
+    print(scale)
 
-# vr.resample()
-# vr.sample_view()
-# vr.scans = blockwise_average_3D(vr.scans, (2,2,2))
-vr.make_mesh(threshold=-300)
-vr.scale(scale)
-vr.save('models/fullbody1')
-print('done')
+    # №№№№№
+    # vr.mask_scans(np.load('data/morph.npy'))
+    vr.mask_scans(np.load('data/mask.npy'))
+    # №№№№№
+    # vr.extract(40, 60)
+    #№№№№№
+
+    vr.scans = blockwise_average_3D(vr.scans, (1, 1, 1))
+    # vr.resample()
+    np.save('data/inside', vr.scans)
+    # vr.sample_view()
+    print(vr.scans.shape)
+
+    # vr.make_mesh(threshold=-300)
+    # vr.scale(scale)
+    # vr.save('models/fullbody1')
+    print('done')
+
 
 #
 # for t in range(-600, 1001, 100):

@@ -1,7 +1,8 @@
 import sys
 
 from PyQt5 import Qt
-from PyQt5.QtWidgets import QFileDialog, QAction, QLabel, QSlider
+from PyQt5.QtGui import QIntValidator
+from PyQt5.QtWidgets import QFileDialog, QAction, QLabel, QSlider, QPushButton, QLineEdit
 from qtpy import QtCore
 from vtk.qt.QVTKRenderWindowInteractor import QVTKRenderWindowInteractor
 
@@ -18,12 +19,16 @@ class MainWindow(Qt.QMainWindow):
     def preprocess(self, newScale, extract, mask):
         if mask is not None:
             self.vr.mask_scans(mask)
-        if extract is not None:
-            self.vr.extract(extract)
 
-        self.scans = blockwise_average_3D(self.vr.scans, newScale)
+        if extract is not None:
+            a,b = extract
+            self.vr.extract(a, b)
+
+
+        self.scans = blockwise_average_3D(self.vr.scans, (1,1,1))
         if newScale is not None:
             self.scans = blockwise_average_3D(self.vr.scans, newScale)
+
 
     def directVolumeRenader(self, newScale=(1,1,1), extract=None, mask=None):
         self.preprocess(newScale, extract, mask)
@@ -52,7 +57,6 @@ class MainWindow(Qt.QMainWindow):
         self.ren.Clear()
         self.ren.RemoveAllViewProps()
 
-        self.directVolumeRenader()
 
         self.volumeMapper = vtk.vtkGPUVolumeRayCastMapper()
         self.initReader()
@@ -75,15 +79,15 @@ class MainWindow(Qt.QMainWindow):
         self.volumeGradientOpacity.AddPoint(90, 0.5)
         self.volumeGradientOpacity.AddPoint(100, 1.0)
 
-        self.volumeProperty = vtk.vtkVolumeProperty()
+
         self.volumeProperty.SetColor(self.volumeColor)
         self.volumeProperty.SetScalarOpacity(self.volumeScalarOpacity)
         self.volumeProperty.SetGradientOpacity(self.volumeGradientOpacity)
         self.volumeProperty.SetInterpolationTypeToLinear()
         self.volumeProperty.ShadeOn()
-        self.volumeProperty.SetAmbient(0.9)
-        self.volumeProperty.SetDiffuse(0.6)
-        self.volumeProperty.SetSpecular(0.2)
+        self.volumeProperty.SetAmbient(self.ambient)
+        self.volumeProperty.SetDiffuse(self.diffuse)
+        self.volumeProperty.SetSpecular(self.specular)
 
         self.volume = vtk.vtkVolume()
         self.volume.SetMapper(self.volumeMapper)
@@ -105,7 +109,7 @@ class MainWindow(Qt.QMainWindow):
         self.ren.AddViewProp(self.volume)
         self.ren.AddActor(outlineActor)
         self.ren.AddVolume(self.volume)
-        self.ren.SetBackground(240, 240, 240)
+        self.ren.SetBackground(0.5, 0.5, 0.5)
         self.ren.Render()
         self.vtkWidget.update()
 
@@ -114,6 +118,8 @@ class MainWindow(Qt.QMainWindow):
             self.readData(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         except:
             return
+
+        self.directVolumeRenader()
         self.resetModel()
 
     def __init__(self, parent = None):
@@ -125,8 +131,12 @@ class MainWindow(Qt.QMainWindow):
     def initModelParams(self):
         self.vr = None
         self.volumeScalarOpacity = vtk.vtkPiecewiseFunction()
+        self.volumeProperty = vtk.vtkVolumeProperty()
         self.setOpacity(0.05)
         self.reader = vtk.vtkImageImport()
+        self.ambient = 0.5
+        self.diffuse = 0.5
+        self.specular = 0.5
 
     def initUI(self):
         self.frame = Qt.QFrame()
@@ -159,11 +169,83 @@ class MainWindow(Qt.QMainWindow):
         self.s2 = QSlider(QtCore.Qt.Horizontal)
         self.s2.setMinimum(-1000)
         self.s2.setMaximum(1000)
-        self.s2.setValue(-1000)
+        self.s2.setValue(-500)
         self.s2.setTickPosition(QSlider.TicksBelow)
         self.s2.setTickInterval(100)
         self.panelLayout.addWidget(self.s2)
         self.s2.valueChanged.connect(self.opacityChanged)
+
+        self.l3 = QLabel("Максимальне значення")
+        self.panelLayout.addWidget(self.l3)
+        self.s3 = QSlider(QtCore.Qt.Horizontal)
+        self.s3.setMinimum(-1000)
+        self.s3.setMaximum(1000)
+        self.s3.setValue(1000)
+        self.s3.setTickPosition(QSlider.TicksBelow)
+        self.s3.setTickInterval(100)
+        self.panelLayout.addWidget(self.s3)
+        self.s3.valueChanged.connect(self.opacityChanged)
+
+
+
+        self.l4 = QLabel("Ambient")
+        self.panelLayout.addWidget(self.l4)
+        self.s4 = QSlider(QtCore.Qt.Horizontal)
+        self.s4.setMinimum(0)
+        self.s4.setMaximum(100)
+        self.s4.setValue(50)
+        self.s4.setTickPosition(QSlider.TicksBelow)
+        self.s4.setTickInterval(10)
+        self.panelLayout.addWidget(self.s4)
+        self.s4.valueChanged.connect(self.sceneChanged)
+
+        self.l5 = QLabel("Diffuse")
+        self.panelLayout.addWidget(self.l5)
+        self.s5 = QSlider(QtCore.Qt.Horizontal)
+        self.s5.setMinimum(0)
+        self.s5.setMaximum(100)
+        self.s5.setValue(50)
+        self.s5.setTickPosition(QSlider.TicksBelow)
+        self.s5.setTickInterval(10)
+        self.panelLayout.addWidget(self.s5)
+        self.s5.valueChanged.connect(self.sceneChanged)
+
+        self.l6 = QLabel("Specular")
+        self.panelLayout.addWidget(self.l6)
+        self.s6 = QSlider(QtCore.Qt.Horizontal)
+        self.s6.setMinimum(0)
+        self.s6.setMaximum(100)
+        self.s6.setValue(50)
+        self.s6.setTickPosition(QSlider.TicksBelow)
+        self.s6.setTickInterval(10)
+        self.panelLayout.addWidget(self.s6)
+        self.s6.valueChanged.connect(self.sceneChanged)
+
+        self.l7 = QLabel("Seed (x,y,z)")
+        self.panelLayout.addWidget(self.l7)
+        #
+        self.seedPanel = Qt.QFrame()
+        self.seedPanelLayout = Qt.QHBoxLayout()
+
+        self.onlyInt = QIntValidator()
+        self.xLineEdit = QLineEdit()
+        self.xLineEdit.setValidator(self.onlyInt)
+        self.seedPanelLayout.addWidget(self.xLineEdit)
+        self.yLineEdit = QLineEdit()
+        self.yLineEdit.setValidator(self.onlyInt)
+        self.seedPanelLayout.addWidget(self.yLineEdit)
+        self.zLineEdit = QLineEdit()
+        self.zLineEdit.setValidator(self.onlyInt)
+        self.seedPanelLayout.addWidget(self.zLineEdit)
+
+        self.seedPanel.setLayout(self.seedPanelLayout)
+        self.panelLayout.addWidget(self.seedPanel)
+        #
+
+
+        self.b1 = QPushButton("Seed")
+        self.panelLayout.addWidget(self.b1)
+        self.b1.clicked.connect(self.seed)
 
         self.panel.setLayout(self.panelLayout)
         self.vl.addWidget(self.panel)
@@ -190,25 +272,38 @@ class MainWindow(Qt.QMainWindow):
 
     def opacityChanged(self):
         opacity = self.sl.value() / 100.0
-        print(opacity)
-        self.setOpacity(opacity)
-
         minValue = self.s2.value()
-
+        maxValue = self.s3.value()
+        self.setOpacity(opacity, minValue, maxValue)
         self.vtkWidget.update()
 
+    def sceneChanged(self):
+        self.ambient = self.s4.value() / 100.0
+        self.diffuse = self.s5.value() / 100.0
+        self.specular = self.s6.value() / 100.0
+        self.volumeProperty.SetAmbient(self.ambient)
+        self.volumeProperty.SetDiffuse(self.diffuse)
+        self.volumeProperty.SetSpecular(self.specular)
+        self.vtkWidget.update()
 
-
-
-
-    def setOpacity(self, opacity):
-        print(opacity)
+    def setOpacity(self, opacity, minValue=-500, maxValue=1000):
+        print(opacity, minValue, maxValue)
         self.volumeScalarOpacity.RemoveAllPoints()
-        self.volumeScalarOpacity.AddPoint(-1000, 0)
-        self.volumeScalarOpacity.AddPoint(-500, opacity)
-        self.volumeScalarOpacity.AddPoint(1000, opacity)
+        self.volumeScalarOpacity.AddPoint(-1001, 0)
+        self.volumeScalarOpacity.AddPoint(minValue, 0)
+        if minValue < maxValue:
+            self.volumeScalarOpacity.AddPoint(minValue+1, opacity)
+            self.volumeScalarOpacity.AddPoint(maxValue-1, opacity)
+        self.volumeScalarOpacity.AddPoint(maxValue, 0)
         self.volumeScalarOpacity.AddPoint(1001, 0)
 
+    def seed(self):
+        if self.vr is not None:
+            self.readData(self.folder)
+            print('data')
+            self.directVolumeRenader(newScale=None, extract=(0, 100))
+            self.initReader()
+            self.resetModel()
 
 if __name__ == "__main__":
     app = Qt.QApplication(sys.argv)

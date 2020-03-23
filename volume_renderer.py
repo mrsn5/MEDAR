@@ -9,7 +9,7 @@ from skimage import measure
 from stl import mesh as M
 from vtk.util import numpy_support
 from helper import *
-
+from segmentator import *
 
 class VolumeRenderer:
     def __init__(self, scans_dir):
@@ -101,6 +101,10 @@ class VolumeRenderer:
             for j in range(3):
                 model.vectors[i][j] = self.verts[f[j], :]
         model.save('data/' + filename + '.stl')
+
+
+    def segmentation(self, seed):
+        segmentator = Segmentator(self.scans, )
 
 
 if __name__ == "__main__":

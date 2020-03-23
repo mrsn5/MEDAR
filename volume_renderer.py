@@ -140,17 +140,3 @@ if __name__ == "__main__":
     # vr.save('models/fullbody1')
     print('done')
 
-
-#
-# for t in range(-600, 1001, 100):
-#     vr.make_mesh(threshold=t)
-#     vr.scale(scale)
-#     vr.save('models/fullbody/fullbody' + str(t))
-#     print('done' + str(t))
-#
-#
-# for t in range(-100, 301, 5):
-#     vr.make_mesh(threshold=t)
-#     vr.scale(scale)
-#     vr.save('models/fullbody/fullbody' + str(t))
-#     print('done' + str(t))

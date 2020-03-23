@@ -25,9 +25,6 @@ class MainWindow(Qt.QMainWindow):
         # reader.Update()
 
         array = np.load('data/inside.npy')
-        array = np.array(array, dtype=np.uint8)
-
-        array = np.load('data/inside.npy')
         # array = np.array(array, dtype=float)
 
         [h, w, z] = array.shape

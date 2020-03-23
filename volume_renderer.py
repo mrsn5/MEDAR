@@ -28,7 +28,7 @@ class VolumeRenderer:
 
         for s in slices:
             s.SliceThickness = slice_thickness
-        return slices[::-1]
+        return slices
 
     def get_pixels_hu(self, scans):
         image = np.stack([s.pixel_array for s in scans])

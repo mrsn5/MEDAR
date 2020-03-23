@@ -104,18 +104,20 @@ class VolumeRenderer:
 
 
     def segmentation(self, seed):
-        segmentator = Segmentator(self.scans, )
+        segmentator = Segmentator(self.scans)
+        mask = segmentator.regionGrow(seed)
+        self.scans[~mask] = -1000
+        return mask
 
 
 if __name__ == "__main__":
 
     vr = VolumeRenderer('data/fullbody1')
-    # vr.sample_view()
-    # vr.histogram()
-    print("Slice Thickness: %f" % vr.raw_scans[0].SliceThickness)
-    print("Pixel Spacing (row, col): (%f, %f) " % (vr.raw_scans[0].PixelSpacing[0], vr.raw_scans[0].PixelSpacing[1]))
     scale = list(vr.raw_scans[0].PixelSpacing) + [vr.raw_scans[0].SliceThickness]
     print(scale)
+
+    s = vr.segmentation([250,250,100])
+    view_sample(s)
 
     # №№№№№
     # vr.mask_scans(np.load('data/morph.npy'))

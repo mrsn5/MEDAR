@@ -16,7 +16,7 @@ class MainWindow(Qt.QMainWindow):
         self.vr = VolumeRenderer(folder)
         self.scale = list(self.vr.raw_scans[0].PixelSpacing) + [self.vr.raw_scans[0].SliceThickness]
 
-    def preprocess(self, newScale, extract, mask):
+    def preprocess(self, newScale, extract, mask, seed=None):
         if mask is not None:
             self.vr.mask_scans(mask)
 
@@ -24,14 +24,19 @@ class MainWindow(Qt.QMainWindow):
             a,b = extract
             self.vr.extract(a, b)
 
+        if seed is not None:
+            self.vr.segmentation(seed)
 
         self.scans = blockwise_average_3D(self.vr.scans, (1,1,1))
         if newScale is not None:
             self.scans = blockwise_average_3D(self.vr.scans, newScale)
 
+        self.shape = self.scans.shape
+        if self.l7 is not None:
+            self.l7.setText("Зерно (x,y,z) [0-%d][0-%d][0-%d]" % self.shape[::-1])
 
-    def directVolumeRenader(self, newScale=(1,1,1), extract=None, mask=None):
-        self.preprocess(newScale, extract, mask)
+    def directVolumeRenader(self, newScale=(1,1,1), extract=None, mask=None, seed=None):
+        self.preprocess(newScale, extract, mask, seed)
         print('directVolumeRenader')
 
     def indirectVolumeRenader(self, threshold=-300, newScale=(1,1,1), extract=None, mask=None):
@@ -53,7 +58,73 @@ class MainWindow(Qt.QMainWindow):
         sx, sy, sz = self.scale
         self.reader.SetDataSpacing(sx, sy, sz)
 
-    def resetModel(self):
+        self.planes = vtk.vtkPlanes()
+        def ClipVolumeRender(obj, event):
+            obj.GetPlanes(self.planes)
+            self.volumeMapper.SetClippingPlanes(self.planes)
+
+        self.boxWidget.SetInputConnection(self.reader.GetOutputPort())
+        self.boxWidget.PlaceWidget()
+        self.boxWidget.InsideOutOn()
+        self.boxWidget.AddObserver("InteractionEvent", ClipVolumeRender)
+        outlineProperty = self.boxWidget.GetOutlineProperty()
+        outlineProperty.SetRepresentationToWireframe()
+        outlineProperty.SetAmbient(1.0)
+        outlineProperty.SetAmbientColor(1, 1, 1)
+        outlineProperty.SetLineWidth(3)
+
+        selectedOutlineProperty = self.boxWidget.GetSelectedOutlineProperty()
+        selectedOutlineProperty.SetRepresentationToWireframe()
+        selectedOutlineProperty.SetAmbient(1.0)
+        selectedOutlineProperty.SetAmbientColor(1, 0, 0)
+        selectedOutlineProperty.SetLineWidth(3)
+
+
+    def resetIndirectModel(self):
+        self.ren.Clear()
+        self.ren.RemoveAllViewProps()
+
+        volumeMapper = vtk.vtkContourFilter()
+        self.initReader()
+        volumeMapper.SetInputConnection(self.reader.GetOutputPort())
+        volumeMapper.SetValue(-300, 300)
+        skinNormals = vtk.vtkPolyDataNormals()
+        skinNormals.SetInputConnection(volumeMapper.GetOutputPort())
+        skinNormals.SetFeatureAngle(60.0)
+        skinMapper = vtk.vtkPolyDataMapper()
+        skinMapper.SetInputConnection(skinNormals.GetOutputPort())
+        skinMapper.ScalarVisibilityOff()
+        skin = vtk.vtkActor()
+        skin.SetMapper(skinMapper)
+
+        # An outline provides context around the data.
+        outlineData = vtk.vtkOutlineFilter()
+        outlineData.SetInputConnection(self.reader.GetOutputPort())
+        mapOutline = vtk.vtkPolyDataMapper()
+        mapOutline.SetInputConnection(outlineData.GetOutputPort())
+        outline = vtk.vtkActor()
+        outline.SetMapper(mapOutline)
+        outline.GetProperty().SetColor(0, 0, 0)
+
+        camera = vtk.vtkCamera()
+        camera.SetViewUp(0, 0, -1)
+        camera.SetPosition(0, 1, 0)
+        camera.SetFocalPoint(0, 0, 0)
+        camera.ComputeViewPlaneNormal()
+
+        self.ren.AddActor(outline)
+        self.ren.AddActor(skin)
+        self.ren.SetActiveCamera(camera)
+        self.ren.ResetCamera()
+        camera.Dolly(1.5)
+
+        self.ren.SetBackground(0.2, 0.2, 0.2)
+        self.ren.ResetCameraClippingRange()
+
+        self.ren.Render()
+        self.vtkWidget.update()
+
+    def resetDirectModel(self):
         self.ren.Clear()
         self.ren.RemoveAllViewProps()
 
@@ -106,6 +177,8 @@ class MainWindow(Qt.QMainWindow):
         outlineActor = vtk.vtkActor()
         outlineActor.SetMapper(outlineMapper)
 
+
+
         self.ren.AddViewProp(self.volume)
         self.ren.AddActor(outlineActor)
         self.ren.AddVolume(self.volume)
@@ -120,12 +193,13 @@ class MainWindow(Qt.QMainWindow):
             return
 
         self.directVolumeRenader()
-        self.resetModel()
+        self.resetDirectModel()
 
     def __init__(self, parent = None):
         Qt.QMainWindow.__init__(self, parent)
-        self.initUI()
         self.initModelParams()
+        self.initUI()
+
 
 
     def initModelParams(self):
@@ -134,9 +208,8 @@ class MainWindow(Qt.QMainWindow):
         self.volumeProperty = vtk.vtkVolumeProperty()
         self.setOpacity(0.05)
         self.reader = vtk.vtkImageImport()
-        self.ambient = 0.5
-        self.diffuse = 0.5
-        self.specular = 0.5
+        self.ambient, self.diffuse, self.specular = 0.5,0.5,0.5
+        self.shape = (0,0,0)
 
     def initUI(self):
         self.frame = Qt.QFrame()
@@ -221,7 +294,7 @@ class MainWindow(Qt.QMainWindow):
         self.panelLayout.addWidget(self.s6)
         self.s6.valueChanged.connect(self.sceneChanged)
 
-        self.l7 = QLabel("Seed (x,y,z)")
+        self.l7 = QLabel("Зерно (x,y,z) [0-%d][0-%d][0-%d]" % self.shape[::-1])
         self.panelLayout.addWidget(self.l7)
         #
         self.seedPanel = Qt.QFrame()
@@ -243,9 +316,13 @@ class MainWindow(Qt.QMainWindow):
         #
 
 
-        self.b1 = QPushButton("Seed")
+        self.b1 = QPushButton("Зерно")
         self.panelLayout.addWidget(self.b1)
         self.b1.clicked.connect(self.seed)
+
+        self.b2 = QPushButton("Збросити")
+        self.panelLayout.addWidget(self.b2)
+        self.b2.clicked.connect(self.reset)
 
         self.panel.setLayout(self.panelLayout)
         self.vl.addWidget(self.panel)
@@ -254,6 +331,10 @@ class MainWindow(Qt.QMainWindow):
 
         self.frame.setLayout(self.vl)
         self.setCentralWidget(self.frame)
+
+        self.boxWidget = vtk.vtkBoxWidget()
+        self.boxWidget.SetInteractor(self.iren)
+        self.boxWidget.SetPlaceFactor(1.0)
 
         self.show()
         self.iren.Initialize()
@@ -298,12 +379,16 @@ class MainWindow(Qt.QMainWindow):
         self.volumeScalarOpacity.AddPoint(1001, 0)
 
     def seed(self):
+        lines = [self.xLineEdit.text(), self.yLineEdit.text(), self.zLineEdit.text()]
+        s = [ 0 if l == "" else int(l) for l in lines]
         if self.vr is not None:
             self.readData(self.folder)
-            print('data')
-            self.directVolumeRenader(newScale=None, extract=(0, 100))
-            self.initReader()
-            self.resetModel()
+            self.directVolumeRenader(seed=s)
+            self.resetDirectModel()
+
+    def reset(self):
+        if self.vr is not None:
+            self.resetIndirectModel()
 
 if __name__ == "__main__":
     app = Qt.QApplication(sys.argv)

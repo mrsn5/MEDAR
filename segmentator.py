@@ -14,6 +14,7 @@ class Segmentator:
         else:
             self.model = model
         self.sitkModel = sitk.GetImageFromArray(self.model)
+        print(self.sitkModel.GetSize())
 
     def regionGrow(self, seed, close=True):
         seg = sitk.Image(self.sitkModel.GetSize(), sitk.sitkUInt8)
@@ -29,4 +30,4 @@ class Segmentator:
         if close:
             kernel = np.ones((11, 11), np.uint8)
             s = cv2.morphologyEx(s, cv2.MORPH_CLOSE, kernel)
-        return s
+        return np.array(s, dtype=bool)

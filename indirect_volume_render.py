@@ -34,7 +34,11 @@ class MainWindow(Qt.QMainWindow):
 
     def initModel(self):
         self.ren.Clear()
-        self.readData(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        try:
+            self.readData(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
+        except:
+            return
+
         self.directVolumeRenader()
 
         [h, w, z] = self.scans.shape
@@ -63,7 +67,6 @@ class MainWindow(Qt.QMainWindow):
         self.volumeColor.AddRGBPoint(80, 0.60, 0.00, 0.00)
         self.volumeColor.AddRGBPoint(400, 1.00, 1.00, 0.90)
         self.volumeColor.AddRGBPoint(1000, 1.00, 1.00, 0.90)
-
 
 
         self.volumeGradientOpacity = vtk.vtkPiecewiseFunction()
@@ -170,13 +173,13 @@ class MainWindow(Qt.QMainWindow):
         opacity = self.sl.value() / 100.0
         print(opacity)
         self.setOpacity(opacity)
-        self.volume.Update()
+
 
     def setOpacity(self, opacity):
         print(opacity)
         self.volumeScalarOpacity.RemoveAllPoints()
-        self.volumeScalarOpacity.AddPoint(-1001, 0)
-        self.volumeScalarOpacity.AddPoint(-1000, opacity)
+        self.volumeScalarOpacity.AddPoint(-1000, 0)
+        self.volumeScalarOpacity.AddPoint(-500, opacity)
         self.volumeScalarOpacity.AddPoint(1000, opacity)
         self.volumeScalarOpacity.AddPoint(1001, 0)
 

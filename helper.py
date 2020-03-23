@@ -1,6 +1,6 @@
 import numpy as np
 from math import cos, sin
-
+import matplotlib.pyplot as plt
 
 def rotation_matrix(v, alpha):
     v = np.array(v)
@@ -49,3 +49,16 @@ def transform(verts, matrix):
 def blockwise_average_3D(A, S):
     m, n, r = np.array(A.shape) // S
     return A.reshape(m, S[0], n, S[1], r, S[2]).mean((1, 3, 5))
+
+
+def view_sample(model):
+    rows, cols = 5, 5
+    fig, ax = plt.subplots(rows, cols, figsize=[12, 12])
+    N = len(model)
+    n = rows * cols
+    for i in range(rows * cols):
+        ind = int(N * i / n)
+        ax[int(i / rows), int(i % rows)].set_title('slice %d' % ind)
+        ax[int(i / rows), int(i % rows)].imshow(model[ind], cmap='gray')
+        ax[int(i / rows), int(i % rows)].axis('off')
+    plt.show()

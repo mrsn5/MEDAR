@@ -7,54 +7,30 @@ import cv2
 
 
 
-vr = VolumeRenderer('data/fullbody1')
-scan = vr.scans
-x, y, z = scan.shape
-scan = cv2.blur(scan, (7,7))
-# print(scan.shape)
-# norm = cv2.normalize(scan, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
-# print(norm.shape)
-# mask  = []
-# for z in norm:
-#     c = cv2.Canny(z, threshold1=8, threshold2=8)
-#     m = cv2.morphologyEx(c, cv2.MORPH_CLOSE, np.ones((5,5), np.uint8))
-#     mask.append(m)
-# mask = np.array(mask, dtype=bool)
-# np.save('data/morph', mask)
-#
-# rows, cols = 3, 3
-# fig, ax = plt.subplots(rows, cols, figsize=[12, 12])
-# N = len(mask)
-# n = rows * cols
-# for i in range(rows * cols):
-#     ind = int(N * i / n)
-#     ax[int(i / rows), int(i % rows)].set_title('slice %d' % ind)
-#     ax[int(i / rows), int(i % rows)].imshow(mask[ind], cmap='gray')
-#     ax[int(i / rows), int(i % rows)].axis('off')
-# plt.show()
+class Segmentator:
+    def __init__(self, model, blur=True):
+        if blur:
+            self.model = cv2.blur(model, (7, 7))
+        else:
+            self.model = model
+        self.sitkModel = sitk.GetImageFromArray(self.model)
 
-img_T1 = sitk.GetImageFromArray(scan)
-img_T1_255 = sitk.Cast(sitk.RescaleIntensity(img_T1), sitk.sitkUInt8)
-# img_T1 = sitk.CurvatureFlow(image1=img_T1, timeStep=0.125, numberOfIterations=10)
+    def regionGrow(self, seed, close=True):
+        seg = sitk.Image(self.sitkModel.GetSize(), sitk.sitkUInt8)
+        seg.CopyInformation(self.sitkModel)
+        seg[seed] = 1
+        v = self.sitkModel[seed]
+        seg = sitk.ConnectedThreshold(image1=self.sitkModel,
+                                      seedList=[seed],
+                                      lower=int(v - 10),
+                                      upper=int(v + 10),
+                                      replaceValue=1)
+        s = sitk.GetArrayFromImage(seg)
+        if close:
+            kernel = np.ones((11, 11), np.uint8)
+            s = cv2.morphologyEx(s, cv2.MORPH_CLOSE, kernel)
+        return s
 
-# for e in range(100):
-# seed = (np.random.randint(0, x), np.random.randint(0, y), np.random.randint(0, z))[::-1]
-seed = (250, 250, 104)
-seg = sitk.Image(img_T1.GetSize(), sitk.sitkUInt8)
-seg.CopyInformation(img_T1)
-seg[seed] = 1
-# seg = sitk.BinaryDilate(seg, 9)
-v = img_T1[seed]
-# print('e', e)
-print('seed', seed)
-print('v', v)
-
-# -------------------
-seg = sitk.ConnectedThreshold(image1=img_T1,
-                              seedList=[seed],
-                              lower=int(v-10),
-                              upper=int(v+10),
-                              replaceValue=1)
 
 # -------------------
 # feature_img = sitk.GradientMagnitudeRecursiveGaussian(img_T1, sigma=.5)

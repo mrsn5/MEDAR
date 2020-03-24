@@ -21,30 +21,32 @@ class MainWindow(Qt.QMainWindow):
             self.vr.mask_scans(mask)
 
         if extract is not None:
-            a,b = extract
+            a, b = extract
             self.vr.extract(a, b)
 
         if seed is not None:
             self.vr.segmentation(seed)
 
-        self.scans = blockwise_average_3D(self.vr.scans, (1,1,1))
         if newScale is not None:
             self.scans = blockwise_average_3D(self.vr.scans, newScale)
+        else:
+            self.scans = blockwise_average_3D(self.vr.scans, (1, 1, 1))
 
-        self.shape = self.scans.shape
-        if self.l7 is not None:
-            self.l7.setText("Зерно (x,y,z) [0-%d][0-%d][0-%d]" % self.shape[::-1])
 
     def directVolumeRenader(self, newScale=(1,1,1), extract=None, mask=None, seed=None):
         self.preprocess(newScale, extract, mask, seed)
+        self.shape = self.scans.shape
+        if self.l7 is not None:
+            self.l7.setText("Зерно (x,y,z) [0-%d][0-%d][0-%d]" % self.shape[::-1])
         print('directVolumeRenader')
 
-    def indirectVolumeRenader(self, threshold=-300, newScale=(1,1,1), extract=None, mask=None):
+    def indirectVolumeRenader(self, threshold=-300, newScale=(2,2,2), extract=None, mask=None):
         self.preprocess(newScale, extract, mask)
-        vr.make_mesh(threshold=threshold)
-        vr.scale(self.scale)
-        vr.save('models/model')
+        self.vr.make_mesh(threshold=threshold)
+        self.vr.scale(self.scale)
+        self.vr.save('model')
         print('saved')
+        return 'data/model.stl'
 
     def initReader(self):
         [h, w, z] = self.scans.shape
@@ -84,36 +86,50 @@ class MainWindow(Qt.QMainWindow):
         self.ren.Clear()
         self.ren.RemoveAllViewProps()
 
-        volumeMapper = vtk.vtkContourFilter()
-        self.initReader()
-        volumeMapper.SetInputConnection(self.reader.GetOutputPort())
-        volumeMapper.SetValue(-300, 300)
-        skinNormals = vtk.vtkPolyDataNormals()
-        skinNormals.SetInputConnection(volumeMapper.GetOutputPort())
-        skinNormals.SetFeatureAngle(60.0)
-        skinMapper = vtk.vtkPolyDataMapper()
-        skinMapper.SetInputConnection(skinNormals.GetOutputPort())
-        skinMapper.ScalarVisibilityOff()
-        skin = vtk.vtkActor()
-        skin.SetMapper(skinMapper)
 
-        # An outline provides context around the data.
-        outlineData = vtk.vtkOutlineFilter()
-        outlineData.SetInputConnection(self.reader.GetOutputPort())
-        mapOutline = vtk.vtkPolyDataMapper()
-        mapOutline.SetInputConnection(outlineData.GetOutputPort())
-        outline = vtk.vtkActor()
-        outline.SetMapper(mapOutline)
-        outline.GetProperty().SetColor(0, 0, 0)
+        filename = self.indirectVolumeRenader(newScale=(4,4,4))
+        reader = vtk.vtkSTLReader()
+        reader.SetFileName(filename)
 
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInputConnection(reader.GetOutputPort())
+
+        actor = vtk.vtkActor()
+        actor.SetMapper(mapper)
+
+
+        # volumeMapper = vtk.vtkMarchingCubes()
+        # self.initReader()
+        # volumeMapper.SetInputConnection(self.reader.GetOutputPort())
+        # volumeMapper.SetValue(0, -300)
+        # skinNormals = vtk.vtkPolyDataNormals()
+        # skinNormals.SetInputConnection(volumeMapper.GetOutputPort())
+        # skinNormals.SetFeatureAngle(60.0)
+        # skinMapper = vtk.vtkPolyDataMapper()
+        # skinMapper.SetInputConnection(skinNormals.GetOutputPort())
+        # skinMapper.ScalarVisibilityOff()
+        # skin = vtk.vtkActor()
+        # skin.SetMapper(skinMapper)
+        #
+        # # An outline provides context around the data.
+        # outlineData = vtk.vtkOutlineFilter()
+        # outlineData.SetInputConnection(self.reader.GetOutputPort())
+        # mapOutline = vtk.vtkPolyDataMapper()
+        # mapOutline.SetInputConnection(outlineData.GetOutputPort())
+        # outline = vtk.vtkActor()
+        # outline.SetMapper(mapOutline)
+        # outline.GetProperty().SetColor(0, 0, 0)
+        #
         camera = vtk.vtkCamera()
         camera.SetViewUp(0, 0, -1)
         camera.SetPosition(0, 1, 0)
         camera.SetFocalPoint(0, 0, 0)
         camera.ComputeViewPlaneNormal()
 
-        self.ren.AddActor(outline)
-        self.ren.AddActor(skin)
+        # self.ren.AddActor(outline)
+        # self.ren.AddActor(skin)
+        self.ren.AddActor(actor) #`````
+
         self.ren.SetActiveCamera(camera)
         self.ren.ResetCamera()
         camera.Dolly(1.5)

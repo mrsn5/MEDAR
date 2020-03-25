@@ -118,7 +118,7 @@ if __name__ == "__main__":
     vr.scans = blockwise_average_3D(vr.scans[:128], (2, 2, 2))
 
 
-    vr.make_mesh(threshold=90)
+    vr.make_mesh(threshold=-300)
     vr.scale(scale)
     vr.save('models/model')
     print('done')

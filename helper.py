@@ -58,7 +58,7 @@ def view_sample(model):
     n = rows * cols
     for i in range(rows * cols):
         ind = int(N * i / n)
-        ax[int(i / rows), int(i % rows)].set_title('slice %d' % ind)
+        ax[int(i / rows), int(i % rows)].set_title('зріз %d' % ind)
         ax[int(i / rows), int(i % rows)].imshow(model[ind], cmap='gray')
         ax[int(i / rows), int(i % rows)].axis('off')
     plt.show()

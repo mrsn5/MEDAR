@@ -6,11 +6,10 @@ from volume_renderer import *
 import cv2
 
 
-
 class Segmentator:
     def __init__(self, model, blur=True):
         if blur:
-            self.model = cv2.blur(model, (7, 7))
+            self.model = cv2.blur(model, (11, 11))
         else:
             self.model = model
         self.sitkModel = sitk.GetImageFromArray(self.model)
@@ -31,3 +30,12 @@ class Segmentator:
             kernel = np.ones((11, 11), np.uint8)
             s = cv2.morphologyEx(s, cv2.MORPH_CLOSE, kernel)
         return np.array(s, dtype=bool)
+
+
+if __name__ == "__main__":
+
+    vr = VolumeRenderer('data/brain1')
+    s = vr.scans
+    print(np.min(s), np.max(s))
+    s = vr.segmentation([200,200,100])
+    view_sample(s)

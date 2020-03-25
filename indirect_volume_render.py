@@ -82,53 +82,40 @@ class MainWindow(Qt.QMainWindow):
         selectedOutlineProperty.SetLineWidth(3)
 
 
-    def resetIndirectModel(self):
+    def resetIndirectModel(self, thresh):
         self.ren.Clear()
         self.ren.RemoveAllViewProps()
 
+        volumeMapper = vtk.vtkContourFilter()
+        self.initReader()
+        volumeMapper.SetInputConnection(self.reader.GetOutputPort())
+        volumeMapper.SetValue(0, thresh)
+        skinNormals = vtk.vtkPolyDataNormals()
+        skinNormals.SetInputConnection(volumeMapper.GetOutputPort())
+        skinNormals.SetFeatureAngle(60.0)
+        skinMapper = vtk.vtkPolyDataMapper()
+        skinMapper.SetInputConnection(skinNormals.GetOutputPort())
+        skinMapper.ScalarVisibilityOff()
+        skin = vtk.vtkActor()
+        skin.SetMapper(skinMapper)
 
-        filename = self.indirectVolumeRenader(newScale=(4,4,4))
-        reader = vtk.vtkSTLReader()
-        reader.SetFileName(filename)
+        # An outline provides context around the data.
+        outlineData = vtk.vtkOutlineFilter()
+        outlineData.SetInputConnection(self.reader.GetOutputPort())
+        mapOutline = vtk.vtkPolyDataMapper()
+        mapOutline.SetInputConnection(outlineData.GetOutputPort())
+        outline = vtk.vtkActor()
+        outline.SetMapper(mapOutline)
+        outline.GetProperty().SetColor(0, 0, 0)
 
-        mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInputConnection(reader.GetOutputPort())
-
-        actor = vtk.vtkActor()
-        actor.SetMapper(mapper)
-
-
-        # volumeMapper = vtk.vtkMarchingCubes()
-        # self.initReader()
-        # volumeMapper.SetInputConnection(self.reader.GetOutputPort())
-        # volumeMapper.SetValue(0, -300)
-        # skinNormals = vtk.vtkPolyDataNormals()
-        # skinNormals.SetInputConnection(volumeMapper.GetOutputPort())
-        # skinNormals.SetFeatureAngle(60.0)
-        # skinMapper = vtk.vtkPolyDataMapper()
-        # skinMapper.SetInputConnection(skinNormals.GetOutputPort())
-        # skinMapper.ScalarVisibilityOff()
-        # skin = vtk.vtkActor()
-        # skin.SetMapper(skinMapper)
-        #
-        # # An outline provides context around the data.
-        # outlineData = vtk.vtkOutlineFilter()
-        # outlineData.SetInputConnection(self.reader.GetOutputPort())
-        # mapOutline = vtk.vtkPolyDataMapper()
-        # mapOutline.SetInputConnection(outlineData.GetOutputPort())
-        # outline = vtk.vtkActor()
-        # outline.SetMapper(mapOutline)
-        # outline.GetProperty().SetColor(0, 0, 0)
-        #
         camera = vtk.vtkCamera()
-        camera.SetViewUp(0, 0, -1)
-        camera.SetPosition(0, 1, 0)
+        camera.SetViewUp(0, 0, 1)
+        camera.SetPosition(0, -1, 0)
         camera.SetFocalPoint(0, 0, 0)
         camera.ComputeViewPlaneNormal()
 
-        # self.ren.AddActor(outline)
-        # self.ren.AddActor(skin)
-        self.ren.AddActor(actor) #`````
+        self.ren.AddActor(outline)
+        self.ren.AddActor(skin)
 
         self.ren.SetActiveCamera(camera)
         self.ren.ResetCamera()
@@ -242,6 +229,16 @@ class MainWindow(Qt.QMainWindow):
         self.panelLayout = Qt.QVBoxLayout()
         self.panelLayout.setAlignment(QtCore.Qt.AlignTop)
 
+
+        self.onlyInt = QIntValidator()
+        self.isoThresh = QLineEdit()
+        self.isoThresh.setValidator(self.onlyInt)
+        self.panelLayout.addWidget(self.isoThresh)
+
+        self.b3 = QPushButton("Згенерувати ізоповерхню")
+        self.panelLayout.addWidget(self.b3)
+        self.b3.clicked.connect(self.isosurface)
+
         self.l1 = QLabel("Прозорість")
         self.panelLayout.addWidget(self.l1)
         self.sl = QSlider(QtCore.Qt.Horizontal)
@@ -316,7 +313,6 @@ class MainWindow(Qt.QMainWindow):
         self.seedPanel = Qt.QFrame()
         self.seedPanelLayout = Qt.QHBoxLayout()
 
-        self.onlyInt = QIntValidator()
         self.xLineEdit = QLineEdit()
         self.xLineEdit.setValidator(self.onlyInt)
         self.seedPanelLayout.addWidget(self.xLineEdit)
@@ -339,6 +335,7 @@ class MainWindow(Qt.QMainWindow):
         self.b2 = QPushButton("Збросити")
         self.panelLayout.addWidget(self.b2)
         self.b2.clicked.connect(self.reset)
+
 
         self.panel.setLayout(self.panelLayout)
         self.vl.addWidget(self.panel)
@@ -404,7 +401,13 @@ class MainWindow(Qt.QMainWindow):
 
     def reset(self):
         if self.vr is not None:
-            self.resetIndirectModel()
+            self.resetDirectModel()
+
+    def isosurface(self):
+        if self.vr is not None:
+            thresh = self.isoThresh.text()
+            thresh = 0 if thresh == "" else int(thresh)
+            self.resetIndirectModel(thresh)
 
 if __name__ == "__main__":
     app = Qt.QApplication(sys.argv)

@@ -16,6 +16,7 @@ class VolumeRenderer:
         self.scans_dir = scans_dir
         self.raw_scans = self.load_scans(scans_dir)[::-1]
         self.scans = self.get_pixels_hu(self.raw_scans)
+        self.scans = cv2.blur(self.scans, (5, 5))
         self.vtk_data = numpy_support.numpy_to_vtk(self.scans.ravel(), deep=True, array_type=vtk.VTK_FLOAT)
 
     def load_scans(self, scans_dir):
@@ -112,28 +113,13 @@ class VolumeRenderer:
 
 if __name__ == "__main__":
 
-    vr = VolumeRenderer('data/fullbody1')
+    vr = VolumeRenderer('data/lung1')
     scale = list(vr.raw_scans[0].PixelSpacing) + [vr.raw_scans[0].SliceThickness]
-    print(scale)
+    vr.scans = blockwise_average_3D(vr.scans[:128], (2, 2, 2))
 
-    s = vr.segmentation([250,250,100])
-    view_sample(s)
 
-    # №№№№№
-    # vr.mask_scans(np.load('data/morph.npy'))
-    vr.mask_scans(np.load('data/mask.npy'))
-    # №№№№№
-    # vr.extract(40, 60)
-    #№№№№№
-
-    vr.scans = blockwise_average_3D(vr.scans, (1, 1, 1))
-    # vr.resample()
-    np.save('data/inside', vr.scans)
-    # vr.sample_view()
-    print(vr.scans.shape)
-
-    # vr.make_mesh(threshold=-300)
-    # vr.scale(scale)
-    # vr.save('models/fullbody1')
+    vr.make_mesh(threshold=90)
+    vr.scale(scale)
+    vr.save('models/model')
     print('done')
 

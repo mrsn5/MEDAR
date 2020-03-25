@@ -12,6 +12,7 @@ from volume_renderer import *
 class MainWindow(Qt.QMainWindow):
 
     def readData(self, folder):
+
         self.folder = folder
         self.vr = VolumeRenderer(folder)
         self.scale = list(self.vr.raw_scans[0].PixelSpacing) + [self.vr.raw_scans[0].SliceThickness]
@@ -191,10 +192,11 @@ class MainWindow(Qt.QMainWindow):
 
     def initModel(self):
         try:
+            print('read')
             self.readData(str(QFileDialog.getExistingDirectory(self, "Select Directory")))
         except:
             return
-
+        print('init')
         self.directVolumeRenader()
         self.resetDirectModel()
 
